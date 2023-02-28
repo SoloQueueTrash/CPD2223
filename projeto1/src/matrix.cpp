@@ -48,7 +48,7 @@ void OnMult(int m_ar, int m_br, FILE* data)
 
     Time2 = clock();
 
-	fprintf(data, "%3.3f, ", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
+	fprintf(data, "%.6f, %f,", (double)(Time2 - Time1) / CLOCKS_PER_SEC, (2 * m_ar * m_ar * m_ar) / (double)(Time2 - Time1));
 
 	// display 10 elements of the result matrix tto verify correctness
 	cout << "Result matrix: " << endl;
@@ -94,10 +94,10 @@ void OnMultLine(int m_ar, int m_br, FILE* data)
             }
         }
     }
-
+ 
     Time2 = clock();
 
-	fprintf(data, "%3.3f, ", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
+	fprintf(data, "%.6f, %f,", (double)(Time2 - Time1) / CLOCKS_PER_SEC, (2 * m_ar * m_ar * m_ar) / (double)(Time2 - Time1));
 
     // display 10 elements of the result matrix tto verify correctness
     cout << "Result matrix: " << endl;
@@ -153,7 +153,7 @@ void OnMultBlock(int m_ar, int m_br, int bkSize, FILE* data)
     }
 
     Time2 = clock();
-	fprintf(data, "%3.3f, ", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
+	fprintf(data, "%.6f, %f,", (double)(Time2 - Time1) / CLOCKS_PER_SEC, (2 * m_ar * m_ar * m_ar) / (double)(Time2 - Time1));
 
     // display 10 elements of the result matrix tto verify correctness
     cout << "Result matrix: " << endl;
@@ -192,7 +192,7 @@ int main (int argc, char *argv[])
 	FILE* data;
 
 	data = fopen("data_cpp.csv", "w");
-    fprintf(data, "type, size, block_size, time, L1_DCM, L2_DCM, TOT_CYC\n");
+    fprintf(data, "type, size, block_size, time, FLOPS, L1_DCM, L2_DCM, TOT_CYC, TOT_INS\n");
 
   	if (data == NULL) {
 		perror("Cannot open file.");
@@ -202,7 +202,7 @@ int main (int argc, char *argv[])
 	int operation;
 	
 	int EventSet = PAPI_NULL;
-  	long long values[3];
+  	long long values[4];
   	int ret;
 	
 
@@ -225,6 +225,9 @@ int main (int argc, char *argv[])
 	ret = PAPI_add_event(EventSet,PAPI_TOT_CYC);
 	if (ret != PAPI_OK) cout << "ERROR: PAPI_TOT_CYC" << endl;
 
+	ret = PAPI_add_event(EventSet,PAPI_TOT_INS);
+	if (ret != PAPI_OK) cout << "ERROR: PAPI_TOT_INS" << endl;
+
 	operation = 1;
 
 	do {
@@ -241,32 +244,54 @@ int main (int argc, char *argv[])
    		col = lin;
 
 		// Start counting
-		ret = PAPI_start(EventSet);
-		if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
-
 		switch (operation){
-			case 1: 
-				OnMult(lin, col, data);
+			case 1:
+				for(int i = 0; i < 10; i++) {
+					ret = PAPI_start(EventSet);
+					if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
+
+					OnMult(lin, col, data);
+					ret = PAPI_stop(EventSet, values);
+					if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
+
+					fprintf(data, "%lld, %lld, %lld, %lld\n",values[0], values[1], values[2], values[3]);
+
+					ret = PAPI_reset( EventSet );
+					if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
+				}
 				break;
 			case 2:
-				OnMultLine(lin, col, data);  
+				for(int i = 0; i < 10; i++) {
+					ret = PAPI_start(EventSet);
+					if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
+
+					OnMultLine(lin, col, data);  
+					ret = PAPI_stop(EventSet, values);
+					if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
+
+					fprintf(data, "%lld, %lld, %lld, %lld\n",values[0], values[1], values[2], values[3]);
+
+					ret = PAPI_reset( EventSet );
+					if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
+				}
 				break;
 			case 3:
+				ret = PAPI_start(EventSet);
+				if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
+
 				cout << "Block Size? ";
 				cin >> blockSize;
 				OnMultBlock(lin, col, blockSize, data);  
+				ret = PAPI_stop(EventSet, values);
+				if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
+
+				fprintf(data, "%lld, %lld, %lld, %lld\n",values[0], values[1], values[2], values[3]);
+
+				ret = PAPI_reset( EventSet );
+				if ( ret != PAPI_OK ) std::cout << "FAIL reset" << endl; 
+				
 				break;
 		}
-
-  		ret = PAPI_stop(EventSet, values);
-  		if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
-
-		fprintf(data, "%lld, %lld, %lld\n",values[0], values[1], values[2]);
-
-		ret = PAPI_reset( EventSet );
-		if ( ret != PAPI_OK )
-			std::cout << "FAIL reset" << endl; 
-
 	}while (operation != 0);
 
 	ret = PAPI_remove_event( EventSet, PAPI_L1_DCM );
@@ -274,6 +299,14 @@ int main (int argc, char *argv[])
 		std::cout << "FAIL remove event" << endl; 
 
 	ret = PAPI_remove_event( EventSet, PAPI_L2_DCM );
+	if ( ret != PAPI_OK )
+		std::cout << "FAIL remove event" << endl; 
+
+	ret = PAPI_remove_event( EventSet, PAPI_TOT_CYC);
+	if ( ret != PAPI_OK )
+		std::cout << "FAIL remove event" << endl; 
+
+	ret = PAPI_remove_event( EventSet, PAPI_TOT_INS); // calcular Cycles Per Instruction
 	if ( ret != PAPI_OK )
 		std::cout << "FAIL remove event" << endl; 
 

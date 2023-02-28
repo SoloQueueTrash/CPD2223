@@ -2,6 +2,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Scanner; 
+import java.util.Locale;
 
 
 public class matrix {
@@ -11,12 +12,9 @@ public class matrix {
     static FileWriter fileWriter;
     static PrintWriter printWriter;
 
-    static FileWriter fileWriterMD;
-    static PrintWriter printWriterMD;
-
     public static void OnMult(int m_ar, int m_br){
 
-        printWriter.printf("Multiplication, %d, -, ", m_ar);
+        printWriter.printf("Multiplication, %d, ", m_ar);
         long startTime, endTime,duration;
         
         double temp;
@@ -53,8 +51,8 @@ public class matrix {
         duration = (endTime - startTime);
         
         System.out.println("Time: " + duration/ CLOCKS_PER_SEC + " seconds");
-
-        printWriter.printf("%3.3f\n", duration / CLOCKS_PER_SEC);
+        String s = String.format(Locale.US, "%.3f", duration/ CLOCKS_PER_SEC);
+        printWriter.printf("%s\n", s);
         
         // display 10 elements of the result matrix tto verify correctness
         System.out.println("Result matrix: ");
@@ -66,7 +64,7 @@ public class matrix {
     }
     public static void OnMultLine(int m_ar, int m_br){
 
-        printWriter.printf("Line Multiplication, %d, -, ", m_ar);
+        printWriter.printf("Line Multiplication, %d, ", m_ar);
 
         long startTime, endTime, duration;
         
@@ -100,7 +98,8 @@ public class matrix {
 
         System.out.println("Time: " + duration/CLOCKS_PER_SEC + " seconds");
 
-        printWriter.printf("%3.3f, ", duration / CLOCKS_PER_SEC);
+        String s = String.format(Locale.US, "%.3f", duration/ CLOCKS_PER_SEC);
+        printWriter.printf("%s\n", s);
     
         // display 10 elements of the result matrix tto verify correctness
         System.out.println("Result matrix: ");
@@ -120,7 +119,7 @@ public class matrix {
             fileWriter = new FileWriter("data_java.csv");
             printWriter = new PrintWriter(fileWriter);
 
-	        printWriter.printf("type, size, block_size, time, L1_DCM, L2_DCM, TOT_CYC\n");
+	        printWriter.printf("type, size, time\n");
             
         } catch (IOException e) {
             System.out.println("An error occurred.");
@@ -143,10 +142,14 @@ public class matrix {
 
             switch (operation){
                 case 1: 
-                    OnMult(lin, col);
+                    for(int i = 0; i < 10; i++) {
+                        OnMult(lin, col);
+                    }
                     break;
                 case 2:
-                    OnMultLine(lin, col);  
+                    for(int i = 0; i < 10; i++){
+                        OnMultLine(lin, col);  
+                    }
                     break;
             }
         } while (operation != 0);
